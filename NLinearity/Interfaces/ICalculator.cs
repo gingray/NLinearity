@@ -6,9 +6,8 @@ using System.Threading.Tasks;
 
 namespace NLinearity.Interfaces
 {
-    public interface ICompute<T>
+    public interface ICalculator<T> where T : class, IMainObject<T>
     {
-        double Compute(T input);
-        string Name { get; }
+        double Calculate(double value, int index, T mainObject, ICompute<T> computer);
     }
 }

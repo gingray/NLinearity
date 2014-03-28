@@ -3,28 +3,47 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using NLinearity.Common;
 using NLinearity.Interfaces;
 
 namespace NLinearity
 {
-    public class DataFrame<TMainObject> where TMainObject : IMainObject
+    public class DataFrame<TMainObject> where TMainObject : class, IMainObject<TMainObject>
     {
         private readonly List<TMainObject> _rows;
         private readonly List<ICompute<TMainObject>> _computers;
+        private readonly ICalculator<TMainObject> _calculator;
 
-        public DataFrame(List<TMainObject> rows, List<ICompute<TMainObject>> computers)
+        public event EventHandler<AppliedPropertyEventArgs<TMainObject>> AppliedProperty;
+
+        protected virtual void OnAppliedProperty(AppliedPropertyEventArgs<TMainObject> e)
+        {
+            EventHandler<AppliedPropertyEventArgs<TMainObject>> handler = AppliedProperty;
+            if (handler != null) handler(this, e);
+        }
+
+        public DataFrame(List<TMainObject> rows, List<ICompute<TMainObject>> computers,ICalculator<TMainObject> calculator)
         {
             _rows = rows;
+            foreach (var mainObject in _rows)
+            {
+                mainObject.DataFrame = this;
+            }
             _computers = computers;
+            _calculator = calculator;
         }
 
         public void Process()
         {
             foreach (var mainObject in _rows)
             {
-                foreach (var computer in _computers)
+                for (var index = 0; index < _computers.Count; index++)
                 {
-                    mainObject.Attributes.Add(computer.Compute(mainObject));
+                    var computer = _computers[index];
+                    var value = computer.Compute(mainObject);
+                    mainObject.Attributes.Add(value);
+                    mainObject.Weight += _calculator.Calculate(value, index, mainObject, computer);
+                    OnAppliedProperty(new AppliedPropertyEventArgs<TMainObject>(value,mainObject,computer));
                 }
             }
         }
